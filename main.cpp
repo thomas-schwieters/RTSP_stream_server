@@ -176,21 +176,16 @@ void sighandler(int n)
 	if(audioES)
 		Medium::close(audioES);
 #endif
-
 	if(videoES)
 		Medium::close(videoES);
-
 #if AUDIO_STREAM
 	if (audioCapture) 
 		closeAudioCapure(audioCapture);	
 #endif
-
 	if (videoCapture)
 		closeVideoCapure(videoCapture);
-
 	if (rtspServer)
 	Medium::close(rtspServer);
-
 	if (env)
 		env->reclaim();
 	delete scheduler;
@@ -288,6 +283,7 @@ int main(int argc, char** argv)
 	unsigned char ttl = 5;
 	struct in_addr destinationAddress;
 	unsigned short rtspPort = 554;
+	unsigned short rtspPortLowQ = 8555;
 	unsigned short rtspOverHTTPPort = 0;
 	bool multicast = false;
 	int verbose = 0;
@@ -383,6 +379,7 @@ int main(int argc, char** argv)
 	
 	// create RTSP server
 	rtspServer = RTSPServer::createNew(*env, rtspPort);
+	rtspServerLowQ = RTSPServer::createNew(*env, rtspPortLowQ);
 	if (rtspServer == NULL) 
 	{
 		//LOG(ERROR) << "Failed to create RTSP server: " << env->getResultMsg();
@@ -401,6 +398,7 @@ int main(int argc, char** argv)
 		fprintf(stderr, "create Video source = %s \n", dev_name);
 		
 		V4L2DeviceParameters param(dev_name,format,width,height,fps, isp_fps, verbose, bitrate, m2m_en, gop, mjpeg_qp, queueSize );
+		V4L2DeviceParameters paramLowQ(dev_name,format,width,height,1, 1, verbose, 1024, m2m_en, gop, mjpeg_qp, queueSize );
 		videoCapture = createVideoCapure(param);
 
 #if AUDIO_STREAM
@@ -438,7 +436,6 @@ int main(int argc, char** argv)
 #if AUDIO_STREAM
 			/* 
 				Start Audio Device 
-
 			*/
 			if (audio_en) {
 				int rc;
@@ -451,6 +448,7 @@ int main(int argc, char** argv)
 #endif
 			/* Determind which Class to use */
 			if (format == V4L2_PIX_FMT_H264)
+				// --> hier h264 rtsp
 				videoES =  H264_V4L2DeviceSource::createNew(*env, param, outputFd, useThread);
 			else  {
 				videoES = V4L2DeviceSource::createNew(*env, param, outputFd, useThread);
@@ -525,6 +523,7 @@ int main(int argc, char** argv)
 				ServerMediaSubsession * audio_subSession = NULL;
 
 				video_subSession = UnicastServerMediaSubsession::createNew(*env,replicator,format, param);
+				video_subSessionLowQ = UnicastServerMediaSubsession::createNew(*env,replicator,format, param);
 
 #if AUDIO_STREAM
 				if (audio_en && audioCapture) 
@@ -532,6 +531,10 @@ int main(int argc, char** argv)
 #endif
 				// Create Server Unicast Session
 				addSession(rtspServer, url.c_str(), video_subSession, audio_subSession);
+			
+			// No audio for low qualits stream
+				addSession(rtspServerLowQ, url.c_str(), video_subSessionLowQ, NULL);
+				
 
 				// main loop
 				signal(SIGINT,sighandler);
@@ -561,6 +564,7 @@ int main(int argc, char** argv)
 			}
 		}
 		Medium::close(rtspServer);
+		Medium::close(rtspServerLowQ);
 	}
 	
 	env->reclaim();
@@ -568,6 +572,3 @@ int main(int argc, char** argv)
 	
 	return 0;
 }
-
-
-
