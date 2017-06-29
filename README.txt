@@ -1,3 +1,21 @@
+
+
+
+With this branch I want to test, whether it's possible to enhance the RTSP Server to provife two RTSP streams.
+The second stream should have
+- lower framerate
+- lower bitrate
+- lower resolution
+in order to use the second stream for mobile access.
+
+
+
+
+
+
+
+Original README.txt
+
 ### About snx_rtsp_server ###
 
 snx_rtsp_server is a small rtsp streaming server developed base on live555 library. snx_rtsp_server supports,
